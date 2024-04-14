@@ -1,0 +1,106 @@
+version: "3.6"
+
+services:
+
+  cassandra1:
+    image: cassandra:3.11.3
+    container_name: cassandra1
+    hostname: cassandra1
+    networks: 
+      - cassandra
+    ports:
+      - '9042:9042'
+    environment: &environment
+      MAX_HEAP_SIZE: 256M
+      HEAP_NEWSIZE: 128M
+      CASSANDRA_SEEDS: "cassandra1,cassandra2,cassandra3"
+      CASSANDRA_USER: cassandra
+      CASSANDRA_HOST: cassandra
+      CASSANDRA_PASSWORD: cassandra
+      CASSANDRA_CLUSTER_NAME: CassandraCluster
+      CASSANDRA_NUM_TOKENS: 128
+      CASSANDRA_DATACENTER: DataCenter1
+      CASSANDRA_RACK: Rack1
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+    healthcheck:
+      test: ["CMD", "cqlsh", "-u cassandra", "-p cassandra" ,"-e describe keyspaces"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+
+  cassandra2:
+    image: cassandra:3.11.3
+    container_name: cassandra2
+    hostname: cassandra2
+    networks: 
+      - cassandra
+    ports:
+      - '9043:9042'
+    environment: *environment
+    healthcheck:
+      test: ["CMD", "cqlsh", "-u cassandra", "-p cassandra" ,"-e describe keyspaces"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+
+  cassandra3:
+    image: cassandra:3.11.3
+    container_name: cassandra3
+    hostname: cassandra3
+    networks: 
+      - cassandra
+    ports:
+      - '9044:9042'
+    environment: *environment
+    healthcheck:
+      test: ["CMD", "cqlsh", "-u cassandra", "-p cassandra" ,"-e describe keyspaces"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+
+  cassandra-init:
+    image: cassandra:3.11.3
+    container_name: cassandra-init
+    networks:
+      - cassandra
+    depends_on:
+      cassandra1:
+        condition: service_healthy
+      cassandra2:
+        condition: service_healthy
+      cassandra3:
+        condition: service_healthy
+    volumes:
+      - ./cassandra/cassandra-setup.cql:/cassandra-setup.cql
+    command: /bin/bash -c "echo loading cassandra keyspace && cqlsh cassandra1 -u cassandra -p cassandra -f /cassandra-setup.cql"
+
+  cassandra-web:
+    build: ./
+    image: dcagatay/cassandra-web:latest
+    container_name: cassandra-web
+    networks:
+      - cassandra 
+    depends_on:
+      cassandra1:
+        condition: service_healthy
+      cassandra2:
+        condition: service_healthy
+      cassandra3:
+        condition: service_healthy
+    ports:
+      - 4000:3000
+    environment:
+      CASSANDRA_HOST_IPS: 192.168.65.1
+      CASSANDRA_PORT: 9042
+      CASSANDRA_USER: cassandra
+      CASSANDRA_PASSWORD: cassandra
+    restart: unless-stopped
+
+networks:
+  cassandra:
+    name: cassandra
+    driver: bridge
+
+volumes:
+  cassandra-db-volume:
+  grafana-data:
