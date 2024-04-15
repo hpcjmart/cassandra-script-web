@@ -1,6 +1,6 @@
 DROP KEYSPACE IF EXISTS market;
 
-CREATE KEYSPACE market WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};
+CREATE KEYSPACE market WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 3};
 
 USE market;
 
